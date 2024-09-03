@@ -1,0 +1,26 @@
+﻿@inherits LayoutComponentBase
+
+@layout Layout.MainLayout
+
+@inject NavigationManager NavigationManager
+
+@if (HttpContext is null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    @Body
+}
+
+@code {
+
+    [CascadingParameter] private HttpContext? HttpContext { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (HttpContext is null)
+            NavigationManager.Refresh(forceReload: true);
+    }
+
+}

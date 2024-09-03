@@ -1,0 +1,86 @@
+﻿@page "/Account/Logout"
+@rendermode InteractiveServer
+@using BlazorIdp.Models
+@using Duende.IdentityServer
+@using Duende.IdentityServer.Events
+@using Duende.IdentityServer.Extensions
+@using Duende.IdentityServer.Services
+@using IdentityModel
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@using Microsoft.AspNetCore.Identity
+
+@inject IIdentityServerInteractionService Interaction;
+@inject IEventService Events;
+@inject SignInManager<ApplicationUser> SignInManager;
+@inject IdentityRedirectManager RedirectManager
+
+<div class="logout-page">
+    <div class="lead">
+        <h1>Logout</h1>
+        <p>Would you like to logout of IdentityServer?</p>
+    </div>
+
+    <button class="btn btn-primary" @onclick="@LogoutAsync">Yes</button>
+</div>
+
+@code {
+
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromQuery] private string? LogoutId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var showLogoutPrompt = true;
+
+        if (HttpContext.User.Identity?.IsAuthenticated is not true)
+            showLogoutPrompt = false;
+        else
+        {
+            var context = await Interaction.GetLogoutContextAsync(LogoutId);
+            if (context?.ShowSignoutPrompt is false)
+                showLogoutPrompt = false;
+        }
+
+        if (!showLogoutPrompt)
+            await LogoutAsync();
+    }
+
+    private async Task LogoutAsync()
+    {
+        if (HttpContext.User.Identity?.IsAuthenticated is true)
+        {
+            LogoutId ??= await Interaction.CreateLogoutContextAsync();
+
+            SignInManager.AuthenticationScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+            await SignInManager.SignOutAsync();
+
+            await Events.RaiseAsync(new UserLogoutSuccessEvent(HttpContext.User.GetSubjectId(), HttpContext.User.GetDisplayName()));
+
+            var idp = HttpContext.User.FindFirst(JwtClaimTypes.IdentityProvider)?.Value;
+
+            if (idp is not null and not IdentityServerConstants.LocalIdentityProvider)
+            {
+                if (await GetSchemeSupportsSignOutAsync(idp))
+                {
+                    var url = $"/Account/LoggedOut?logoutId={LogoutId}";
+                    await HttpContext.SignOutAsync(idp, new AuthenticationProperties
+                    {
+                        RedirectUri = url
+                    });
+                }
+            }
+        }
+
+        RedirectManager.RedirectTo("/Account/LoggedOut", new Dictionary<string, object?>([new KeyValuePair<string, object?>("logoutId", LogoutId)]));
+    }
+
+    private async Task<bool> GetSchemeSupportsSignOutAsync(string idp)
+    {
+        var provider = HttpContext.RequestServices.GetRequiredService<IAuthenticationHandlerProvider>();
+        var handler = await provider.GetHandlerAsync(HttpContext, idp);
+        return handler is IAuthenticationSignOutHandler;
+    }
+
+}
