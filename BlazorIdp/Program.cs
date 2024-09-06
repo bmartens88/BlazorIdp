@@ -23,26 +23,35 @@ builder.Services.AddIdentityCore<ApplicationUser>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
-builder.Services.AddIdentityServer(opts =>
-        opts.Authentication.CookieAuthenticationScheme = CookieAuthenticationDefaults.AuthenticationScheme)
+builder.Services.AddIdentityServer()
     .AddAspNetIdentity<ApplicationUser>()
     .AddInMemoryIdentityResources(Config.IdentityResources)
     .AddInMemoryApiScopes(Config.ApiScopes)
     .AddInMemoryClients(Config.Clients)
     .AddProfileService<CustomUserProfileService>();
 
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie()
-    .AddCookie("external");
+builder.Services.AddAuthentication(opts =>
+    {
+        opts.DefaultScheme = IdentityConstants.ApplicationScheme;
+        opts.DefaultChallengeScheme = IdentityConstants.ExternalScheme;
+    })
+    .AddGoogle(opts =>
+    {
+        opts.SignInScheme = IdentityConstants.ExternalScheme;
+        opts.ClientSecret = "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";
+        opts.ClientId = "1050117780897-61c1cb1v8dsu7ohdd5rpmm02te17mkik.apps.googleusercontent.com";
+    })
+    .AddIdentityCookies();
 
 builder.Services.AddAuthorization();
 
 // Add services to the container.
-builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+builder.Services.AddRazorComponents();
 
 builder.Services.AddCascadingAuthenticationState();
-builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
+builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
 builder.Services.AddScoped<IdentityRedirectManager>();
+builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
 var app = builder.Build();
 
@@ -57,13 +66,13 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseStaticFiles();
-app.UseAntiforgery();
 
 app.UseIdentityServer();
 app.UseAuthorization();
+app.UseAntiforgery();
 
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+app.MapRazorComponents<App>();
+app.MapAdditionalIdentityEndpoints();
 
 app.EnsureSeedData();
 

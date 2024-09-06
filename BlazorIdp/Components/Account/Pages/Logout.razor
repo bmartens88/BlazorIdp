@@ -1,5 +1,4 @@
-﻿@page "/Account/Logout"
-@rendermode InteractiveServer
+﻿@page "/Account/ConfirmLogout"
 @using BlazorIdp.Models
 @using Duende.IdentityServer
 @using Duende.IdentityServer.Events
@@ -15,13 +14,20 @@
 @inject SignInManager<ApplicationUser> SignInManager;
 @inject IdentityRedirectManager RedirectManager
 
+<PageTitle>Confirm logout</PageTitle>
+
 <div class="logout-page">
     <div class="lead">
         <h1>Logout</h1>
         <p>Would you like to logout of IdentityServer?</p>
     </div>
-
-    <button class="btn btn-primary" @onclick="@LogoutAsync">Yes</button>
+    <form method="post" action="Account/PerformLogout">
+        <AntiforgeryToken/>
+        <input type="hidden" name="logoutId" value="@LogoutId"/>
+        <input type="hidden" name="returnUrl" value="@ReturnUrl"/>
+        <button type="submit" name="choice" value="true" class="btn btn-primary">Yes</button>
+        <button type="submit" name="choice" value="false" class="btn btn-danger">No</button>
+    </form>
 </div>
 
 @code {
@@ -30,22 +36,7 @@
 
     [SupplyParameterFromQuery] private string? LogoutId { get; set; }
 
-    protected override async Task OnInitializedAsync()
-    {
-        var showLogoutPrompt = true;
-
-        if (HttpContext.User.Identity?.IsAuthenticated is not true)
-            showLogoutPrompt = false;
-        else
-        {
-            var context = await Interaction.GetLogoutContextAsync(LogoutId);
-            if (context?.ShowSignoutPrompt is false)
-                showLogoutPrompt = false;
-        }
-
-        if (!showLogoutPrompt)
-            await LogoutAsync();
-    }
+    [SupplyParameterFromQuery] private string? ReturnUrl { get; set; }
 
     private async Task LogoutAsync()
     {
@@ -53,7 +44,6 @@
         {
             LogoutId ??= await Interaction.CreateLogoutContextAsync();
 
-            SignInManager.AuthenticationScheme = CookieAuthenticationDefaults.AuthenticationScheme;
             await SignInManager.SignOutAsync();
 
             await Events.RaiseAsync(new UserLogoutSuccessEvent(HttpContext.User.GetSubjectId(), HttpContext.User.GetDisplayName()));

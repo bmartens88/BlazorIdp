@@ -17,10 +17,10 @@ else
 
     [CascadingParameter] private HttpContext? HttpContext { get; set; }
 
-    protected override void OnInitialized()
+    protected override void OnParametersSet()
     {
         if (HttpContext is null)
-            NavigationManager.Refresh(forceReload: true);
+            NavigationManager.Refresh(true);
     }
 
 }

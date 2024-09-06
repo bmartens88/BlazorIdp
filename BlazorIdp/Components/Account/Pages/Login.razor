@@ -68,13 +68,12 @@
     protected override async Task OnInitializedAsync()
     {
         if (HttpMethods.IsGet(HttpContext.Request.Method))
-            await HttpContext.SignOutAsync("external");
+            await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
     }
 
     private async Task LoginUserAsync()
     {
         var context = await InteractionService.GetAuthorizationContextAsync(ReturnUrl);
-        SignInManager.AuthenticationScheme = CookieAuthenticationDefaults.AuthenticationScheme;
         var result = await SignInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, false);
         if (result.Succeeded)
         {
